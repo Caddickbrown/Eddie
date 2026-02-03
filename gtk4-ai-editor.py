@@ -10,6 +10,7 @@ gi.require_version('GtkSource', '5')
 from gi.repository import Gtk, GtkSource, Gio, GLib, Pango
 import json
 import os
+import subprocess
 import threading
 import requests
 from pathlib import Path
@@ -23,7 +24,9 @@ class Config:
         "max_tokens": 2000,
         "context_max_tokens": 6000,
         "editor_font": "Monospace 11",
-        "theme": "cobalt"
+        "theme": "cobalt",
+        "show_line_numbers": True,
+        "wrap_text": True
     }
     
     @staticmethod
@@ -42,13 +45,27 @@ class Config:
             json.dump(config, f, indent=2)
 
 
-class FileTreeItem:
-    """Represents a file or folder in the tree"""
-    def __init__(self, path, is_dir=False):
-        self.path = Path(path)
-        self.is_dir = is_dir
-        self.in_context = False
-        self.name = self.path.name
+class EditorTab:
+    """Represents an open file tab"""
+    def __init__(self, file_path=None):
+        self.file_path = file_path
+        self.modified = False
+        
+        # Create source view and buffer
+        self.source_view = GtkSource.View()
+        self.source_buffer = self.source_view.get_buffer()
+        
+        # Track modifications
+        self.source_buffer.connect("modified-changed", self.on_modified_changed)
+        
+    def on_modified_changed(self, buffer):
+        self.modified = buffer.get_modified()
+    
+    def get_display_name(self):
+        if self.file_path:
+            name = os.path.basename(self.file_path)
+            return f"*{name}" if self.modified else name
+        return "*Untitled" if self.modified else "Untitled"
 
 
 class AIWriter(Gtk.ApplicationWindow):
@@ -58,38 +75,45 @@ class AIWriter(Gtk.ApplicationWindow):
         
         self.config = Config.load()
         self.root_folder = None
-        self.open_files = {}  # path -> GtkSourceBuffer
         self.file_contexts = set()  # Paths in AI context
-        self.current_file = None
+        
+        # Tab management
+        self.tabs = []  # List of EditorTab objects
+        self.current_tab_index = -1
+        
+        # Panel visibility
+        self.file_panel_visible = True
+        self.ai_panel_visible = True
         
         self.setup_ui()
+        self.create_new_tab()  # Start with one empty tab
         
     def setup_ui(self):
         # Main horizontal paned (file tree | editor | AI panel)
-        main_paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
+        self.main_paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
         
         # LEFT: File tree
-        file_panel = self.create_file_panel()
-        main_paned.set_start_child(file_panel)
-        main_paned.set_resize_start_child(False)
-        main_paned.set_shrink_start_child(False)
+        self.file_panel = self.create_file_panel()
+        self.main_paned.set_start_child(self.file_panel)
+        self.main_paned.set_resize_start_child(False)
+        self.main_paned.set_shrink_start_child(False)
         
         # MIDDLE + RIGHT: Editor and AI panel
-        editor_ai_paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
+        self.editor_ai_paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
         
         # MIDDLE: Editor with tabs
         editor_panel = self.create_editor_panel()
-        editor_ai_paned.set_start_child(editor_panel)
-        editor_ai_paned.set_resize_start_child(True)
-        editor_ai_paned.set_shrink_start_child(False)
+        self.editor_ai_paned.set_start_child(editor_panel)
+        self.editor_ai_paned.set_resize_start_child(True)
+        self.editor_ai_paned.set_shrink_start_child(False)
         
         # RIGHT: AI Chat panel
-        ai_panel = self.create_ai_panel()
-        editor_ai_paned.set_end_child(ai_panel)
-        editor_ai_paned.set_resize_end_child(False)
-        editor_ai_paned.set_shrink_end_child(False)
+        self.ai_panel = self.create_ai_panel()
+        self.editor_ai_paned.set_end_child(self.ai_panel)
+        self.editor_ai_paned.set_resize_end_child(False)
+        self.editor_ai_paned.set_shrink_end_child(False)
         
-        main_paned.set_end_child(editor_ai_paned)
+        self.main_paned.set_end_child(self.editor_ai_paned)
         
         # Main container with toolbar
         main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -97,7 +121,7 @@ class AIWriter(Gtk.ApplicationWindow):
         # Toolbar
         toolbar = self.create_toolbar()
         main_box.append(toolbar)
-        main_box.append(main_paned)
+        main_box.append(self.main_paned)
         
         self.set_child(main_box)
     
@@ -123,9 +147,37 @@ class AIWriter(Gtk.ApplicationWindow):
         save_btn.connect("clicked", self.on_save_file)
         toolbar.append(save_btn)
         
+        # Close tab button
+        close_btn = Gtk.Button(label="Close Tab")
+        close_btn.connect("clicked", self.on_close_tab)
+        toolbar.append(close_btn)
+        
         # Separator
         separator = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
         toolbar.append(separator)
+        
+        # Toggle file panel
+        toggle_files_btn = Gtk.ToggleButton(label="Files")
+        toggle_files_btn.set_active(True)
+        toggle_files_btn.connect("toggled", self.on_toggle_file_panel)
+        toolbar.append(toggle_files_btn)
+        
+        # Toggle AI panel
+        toggle_ai_btn = Gtk.ToggleButton(label="AI")
+        toggle_ai_btn.set_active(True)
+        toggle_ai_btn.connect("toggled", self.on_toggle_ai_panel)
+        toolbar.append(toggle_ai_btn)
+        
+        # Separator
+        separator2 = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
+        toolbar.append(separator2)
+        
+        # Scripts button (popover with list of scripts in project's scripts/ folder)
+        self.scripts_popover = Gtk.Popover()
+        self.scripts_popover.connect("show", self._refresh_scripts_popover)
+        scripts_btn = Gtk.MenuButton(label="Scripts")
+        scripts_btn.set_popover(self.scripts_popover)
+        toolbar.append(scripts_btn)
         
         # Context label
         self.context_label = Gtk.Label(label="Context: 0 files")
@@ -177,7 +229,7 @@ class AIWriter(Gtk.ApplicationWindow):
         # Context checkbox column
         renderer_toggle = Gtk.CellRendererToggle()
         renderer_toggle.connect("toggled", self.on_context_toggled)
-        column_toggle = Gtk.TreeViewColumn("Context", renderer_toggle, active=2)
+        column_toggle = Gtk.TreeViewColumn("Ctx", renderer_toggle, active=2)
         self.file_tree.append_column(column_toggle)
         
         # Double-click to open file
@@ -191,38 +243,19 @@ class AIWriter(Gtk.ApplicationWindow):
     def create_editor_panel(self):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         
-        # Tab bar (simple label for now - would need custom tab widget for multiple files)
-        self.tab_label = Gtk.Label(label="No file open")
-        self.tab_label.set_margin_start(6)
-        self.tab_label.set_margin_top(6)
-        self.tab_label.set_halign(Gtk.Align.START)
-        box.append(self.tab_label)
+        # Tab bar with scrolling
+        tab_scroll = Gtk.ScrolledWindow()
+        tab_scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.NEVER)
+        tab_scroll.set_size_request(-1, 40)
         
-        # Editor
-        scrolled = Gtk.ScrolledWindow()
-        scrolled.set_vexpand(True)
+        self.tab_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        tab_scroll.set_child(self.tab_box)
+        box.append(tab_scroll)
         
-        self.source_view = GtkSource.View()
-        self.source_buffer = self.source_view.get_buffer()
-        
-        # Configure editor
-        self.source_view.set_show_line_numbers(True)
-        self.source_view.set_auto_indent(True)
-        self.source_view.set_indent_width(4)
-        self.source_view.set_monospace(True)
-        
-        # Set font
-        font_desc = Pango.FontDescription(self.config['editor_font'])
-        self.source_view.override_font(font_desc)
-        
-        # Set theme
-        scheme_manager = GtkSource.StyleSchemeManager.get_default()
-        scheme = scheme_manager.get_scheme(self.config['theme'])
-        if scheme:
-            self.source_buffer.set_style_scheme(scheme)
-        
-        scrolled.set_child(self.source_view)
-        box.append(scrolled)
+        # Editor stack (holds all open editors)
+        self.editor_stack = Gtk.Stack()
+        self.editor_stack.set_vexpand(True)
+        box.append(self.editor_stack)
         
         return box
     
@@ -276,6 +309,201 @@ class AIWriter(Gtk.ApplicationWindow):
         
         return box
     
+    def create_new_tab(self, file_path=None):
+        """Create a new editor tab"""
+        tab = EditorTab(file_path)
+        
+        # Configure the editor view
+        self.configure_editor_view(tab.source_view)
+        
+        # Add to stack
+        scrolled = Gtk.ScrolledWindow()
+        scrolled.set_child(tab.source_view)
+        
+        tab_name = f"tab_{len(self.tabs)}"
+        self.editor_stack.add_named(scrolled, tab_name)
+        
+        # Create tab button
+        tab_button = Gtk.Button(label=tab.get_display_name())
+        tab_button.connect("clicked", lambda w: self.switch_to_tab(len(self.tabs)))
+        
+        # Track modified state to update button label
+        tab.source_buffer.connect("modified-changed", 
+                                  lambda b: tab_button.set_label(tab.get_display_name()))
+        
+        self.tab_box.append(tab_button)
+        
+        self.tabs.append(tab)
+        self.switch_to_tab(len(self.tabs) - 1)
+        
+        return tab
+    
+    def configure_editor_view(self, view):
+        """Apply configuration to an editor view"""
+        view.set_show_line_numbers(self.config['show_line_numbers'])
+        view.set_auto_indent(True)
+        view.set_indent_width(4)
+        view.set_monospace(True)
+        view.set_wrap_mode(Gtk.WrapMode.WORD if self.config['wrap_text'] else Gtk.WrapMode.NONE)
+        
+        # Font: GTK4 uses CSS; set_monospace(True) above gives monospace. editor_font in config kept for future use.
+
+        # Set theme
+        scheme_manager = GtkSource.StyleSchemeManager.get_default()
+        scheme = scheme_manager.get_scheme(self.config['theme'])
+        if scheme:
+            view.get_buffer().set_style_scheme(scheme)
+    
+    def switch_to_tab(self, index):
+        """Switch to the specified tab"""
+        if 0 <= index < len(self.tabs):
+            self.current_tab_index = index
+            self.editor_stack.set_visible_child_name(f"tab_{index}")
+            
+            # Update tab button styles (simple highlight)
+            for i, child in enumerate(list(self.tab_box)):
+                if i == index:
+                    child.add_css_class("suggested-action")
+                else:
+                    child.remove_css_class("suggested-action")
+    
+    def get_current_tab(self):
+        """Get the currently active tab"""
+        if 0 <= self.current_tab_index < len(self.tabs):
+            return self.tabs[self.current_tab_index]
+        return None
+    
+    def on_toggle_file_panel(self, button):
+        """Toggle file panel visibility"""
+        self.file_panel_visible = button.get_active()
+        self.file_panel.set_visible(self.file_panel_visible)
+    
+    def on_toggle_ai_panel(self, button):
+        """Toggle AI panel visibility"""
+        self.ai_panel_visible = button.get_active()
+        self.ai_panel.set_visible(self.ai_panel_visible)
+    
+    def _get_scripts_dir(self):
+        """Return Path to project's scripts folder, or None."""
+        if not self.root_folder:
+            return None
+        scripts_dir = self.root_folder / "scripts"
+        return scripts_dir if scripts_dir.is_dir() else None
+    
+    def _refresh_scripts_popover(self, popover):
+        """Rebuild popover with list of .py files in scripts/ folder (called when popover is shown)."""
+        child = self.scripts_popover.get_child()
+        if child:
+            self.scripts_popover.set_child(None)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        box.set_margin_start(12)
+        box.set_margin_end(12)
+        box.set_margin_top(12)
+        box.set_margin_bottom(12)
+        scripts_dir = self._get_scripts_dir()
+        if not scripts_dir:
+            label = Gtk.Label(label="Open a folder that contains a 'scripts' folder.")
+            label.set_wrap(True)
+            label.set_max_width_chars(35)
+            box.append(label)
+        else:
+            py_files = sorted(scripts_dir.glob("*.py"))
+            if not py_files:
+                label = Gtk.Label(label="No .py files in scripts/")
+                box.append(label)
+            else:
+                listbox = Gtk.ListBox()
+                for p in py_files:
+                    row = Gtk.ListBoxRow()
+                    row.set_child(Gtk.Label(label=p.name))
+                    row.script_path = str(p)  # store for _on_script_selected
+                    listbox.append(row)
+                listbox.connect("row-activated", self._on_script_selected)
+                scrolled = Gtk.ScrolledWindow()
+                scrolled.set_min_content_height(120)
+                scrolled.set_child(listbox)
+                box.append(scrolled)
+        self.scripts_popover.set_child(box)
+    
+    def _on_script_selected(self, listbox, row):
+        """Run the selected script and show output."""
+        path = getattr(row, "script_path", None)
+        if path:
+            self.scripts_popover.popdown()
+            self._run_script(path)
+    
+    def _run_script(self, script_path):
+        """Run script in background thread, then show output dialog."""
+        scripts_dir = self._get_scripts_dir()
+        cwd = str(scripts_dir) if scripts_dir else None
+        
+        def run():
+            try:
+                result = subprocess.run(
+                    ["python3", script_path],
+                    cwd=cwd,
+                    capture_output=True,
+                    text=True,
+                    timeout=300,
+                )
+                GLib.idle_add(
+                    self._show_script_output,
+                    script_path,
+                    result.stdout or "",
+                    result.stderr or "",
+                    result.returncode,
+                )
+            except subprocess.TimeoutExpired:
+                GLib.idle_add(
+                    self._show_script_output,
+                    script_path,
+                    "",
+                    "Script timed out after 300 seconds.",
+                    -1,
+                )
+            except Exception as e:
+                GLib.idle_add(
+                    self._show_script_output,
+                    script_path,
+                    "",
+                    str(e),
+                    -1,
+                )
+        
+        threading.Thread(target=run, daemon=True).start()
+    
+    def _show_script_output(self, script_path, stdout, stderr, returncode):
+        """Show dialog with script output."""
+        dialog = Gtk.Window()
+        dialog.set_transient_for(self)
+        dialog.set_modal(True)
+        dialog.set_title(f"Script: {os.path.basename(script_path)}")
+        dialog.set_default_size(500, 400)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        box.set_margin_start(12)
+        box.set_margin_end(12)
+        box.set_margin_top(12)
+        box.set_margin_bottom(12)
+        text = Gtk.TextView()
+        text.set_editable(False)
+        text.set_monospace(True)
+        text.set_wrap_mode(Gtk.WrapMode.CHAR)
+        buf = text.get_buffer()
+        if stdout:
+            buf.insert(buf.get_end_iter(), stdout)
+        if stderr:
+            buf.insert(buf.get_end_iter(), "\n--- stderr ---\n" + stderr)
+        buf.insert(buf.get_end_iter(), f"\n\nExit code: {returncode}")
+        scrolled = Gtk.ScrolledWindow()
+        scrolled.set_vexpand(True)
+        scrolled.set_child(text)
+        box.append(scrolled)
+        close_btn = Gtk.Button(label="Close")
+        close_btn.connect("clicked", lambda w: dialog.destroy())
+        box.append(close_btn)
+        dialog.set_child(box)
+        dialog.present()
+    
     def on_open_folder(self, button):
         dialog = Gtk.FileDialog.new()
         dialog.select_folder(callback=self.on_folder_selected)
@@ -322,42 +550,115 @@ class AIWriter(Gtk.ApplicationWindow):
             self.open_file(file_path)
     
     def open_file(self, file_path):
+        """Open a file in a new tab or switch to existing tab"""
+        # Check if already open
+        for i, tab in enumerate(self.tabs):
+            if tab.file_path == file_path:
+                self.switch_to_tab(i)
+                return
+        
+        # Open in new tab
         try:
             with open(file_path, 'r') as f:
                 content = f.read()
             
-            self.source_buffer.set_text(content)
-            self.current_file = file_path
-            self.tab_label.set_text(os.path.basename(file_path))
+            tab = self.create_new_tab(file_path)
+            tab.source_buffer.set_text(content)
+            tab.source_buffer.set_modified(False)
             
             # Auto-detect language
             lang_manager = GtkSource.LanguageManager.get_default()
             language = lang_manager.guess_language(file_path, None)
             if language:
-                self.source_buffer.set_language(language)
+                tab.source_buffer.set_language(language)
         except Exception as e:
             self.show_error(f"Error opening file: {e}")
     
     def on_save_file(self, button):
-        if not self.current_file:
+        """Save the current tab"""
+        tab = self.get_current_tab()
+        if not tab:
             return
         
+        if not tab.file_path:
+            # Need to show save dialog
+            dialog = Gtk.FileDialog.new()
+            dialog.save(callback=self.on_file_save_dialog)
+            return
+        
+        self.save_tab(tab)
+    
+    def on_file_save_dialog(self, dialog, result):
+        """Handle save dialog result"""
         try:
-            start = self.source_buffer.get_start_iter()
-            end = self.source_buffer.get_end_iter()
-            content = self.source_buffer.get_text(start, end, False)
+            file = dialog.save_finish(result)
+            if file:
+                tab = self.get_current_tab()
+                if tab:
+                    tab.file_path = file.get_path()
+                    self.save_tab(tab)
+        except GLib.Error:
+            pass
+    
+    def save_tab(self, tab):
+        """Save a specific tab to disk"""
+        try:
+            start = tab.source_buffer.get_start_iter()
+            end = tab.source_buffer.get_end_iter()
+            content = tab.source_buffer.get_text(start, end, False)
             
-            with open(self.current_file, 'w') as f:
+            with open(tab.file_path, 'w') as f:
                 f.write(content)
             
-            self.add_chat_message("System", f"Saved {os.path.basename(self.current_file)}")
+            tab.source_buffer.set_modified(False)
+            self.add_chat_message("System", f"Saved {os.path.basename(tab.file_path)}")
         except Exception as e:
             self.show_error(f"Error saving file: {e}")
     
     def on_new_file(self, button):
-        self.source_buffer.set_text("")
-        self.current_file = None
-        self.tab_label.set_text("Untitled")
+        """Create a new empty tab"""
+        self.create_new_tab()
+    
+    def on_close_tab(self, button):
+        """Close the current tab"""
+        if self.current_tab_index < 0 or not self.tabs:
+            return
+        
+        tab = self.tabs[self.current_tab_index]
+        
+        # Check if modified
+        if tab.modified:
+            # TODO: Show confirmation dialog
+            pass
+        
+        # Remove from UI
+        tab_name = f"tab_{self.current_tab_index}"
+        self.editor_stack.remove(self.editor_stack.get_child_by_name(tab_name))
+        
+        # Remove tab button
+        child = list(self.tab_box)[self.current_tab_index]
+        self.tab_box.remove(child)
+        
+        # Remove from tabs list
+        self.tabs.pop(self.current_tab_index)
+        
+        # Renumber remaining tabs
+        for i in range(self.current_tab_index, len(self.tabs)):
+            old_name = f"tab_{i+1}"
+            new_name = f"tab_{i}"
+            child = self.editor_stack.get_child_by_name(old_name)
+            if child:
+                # GTK4 doesn't have a direct rename, so we need to work around it
+                pass
+        
+        # Switch to adjacent tab
+        if self.tabs:
+            new_index = min(self.current_tab_index, len(self.tabs) - 1)
+            self.switch_to_tab(new_index)
+        else:
+            self.current_tab_index = -1
+            # Create a new empty tab
+            self.create_new_tab()
     
     def on_context_toggled(self, widget, path):
         iter = self.file_store.get_iter(path)
@@ -424,11 +725,13 @@ class AIWriter(Gtk.ApplicationWindow):
         context_parts = []
         
         # Add current file
-        if self.current_file:
+        tab = self.get_current_tab()
+        if tab and tab.file_path:
             try:
-                with open(self.current_file, 'r') as f:
-                    content = f.read()
-                context_parts.append(f"=== Current File: {os.path.basename(self.current_file)} ===\n{content}\n")
+                start = tab.source_buffer.get_start_iter()
+                end = tab.source_buffer.get_end_iter()
+                content = tab.source_buffer.get_text(start, end, False)
+                context_parts.append(f"=== Current File: {os.path.basename(tab.file_path)} ===\n{content}\n")
             except:
                 pass
         
@@ -444,7 +747,7 @@ class AIWriter(Gtk.ApplicationWindow):
         
         # Add mentioned files
         for file_path in mentioned_files:
-            if file_path not in self.file_contexts and file_path != self.current_file:
+            if file_path not in self.file_contexts and (not tab or file_path != tab.file_path):
                 try:
                     with open(file_path, 'r') as f:
                         content = f.read()
@@ -505,6 +808,11 @@ class AIWriter(Gtk.ApplicationWindow):
         dialog = SettingsDialog(self, self.config)
         dialog.present()
     
+    def apply_settings(self):
+        """Apply settings to all open editors"""
+        for tab in self.tabs:
+            self.configure_editor_view(tab.source_view)
+    
     def show_error(self, message):
         self.add_chat_message("Error", message)
 
@@ -515,7 +823,7 @@ class SettingsDialog(Gtk.Window):
         self.set_transient_for(parent)
         self.set_modal(True)
         self.set_title("Settings")
-        self.set_default_size(500, 400)
+        self.set_default_size(500, 500)
         
         self.parent_window = parent
         self.config = config.copy()
@@ -565,46 +873,63 @@ class SettingsDialog(Gtk.Window):
         temp_box.append(temp_label)
         temp_box.append(self.temp_spin)
         box.append(temp_box)
-        
+
+        # Show line numbers checkbox
+        self.line_numbers_check = Gtk.CheckButton(label="Show Line Numbers")
+        self.line_numbers_check.set_active(self.config['show_line_numbers'])
+        box.append(self.line_numbers_check)
+
+        # Wrap text checkbox
+        self.wrap_text_check = Gtk.CheckButton(label="Wrap Text")
+        self.wrap_text_check.set_active(self.config['wrap_text'])
+        box.append(self.wrap_text_check)
+
         # Buttons
         button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         button_box.set_halign(Gtk.Align.END)
         button_box.set_margin_top(12)
-        
+
         cancel_btn = Gtk.Button(label="Cancel")
         cancel_btn.connect("clicked", lambda w: self.close())
         button_box.append(cancel_btn)
-        
+
         save_btn = Gtk.Button(label="Save")
         save_btn.connect("clicked", self.on_save)
         button_box.append(save_btn)
-        
+
         box.append(button_box)
-        
+
         self.set_child(box)
-    
+
     def on_save(self, button):
         self.config['llama_cpp_url'] = self.url_entry.get_text()
         self.config['temperature'] = self.temp_spin.get_value()
-        
+        self.config['show_line_numbers'] = self.line_numbers_check.get_active()
+        self.config['wrap_text'] = self.wrap_text_check.get_active()
+
         start = self.prompt_buffer.get_start_iter()
         end = self.prompt_buffer.get_end_iter()
         self.config['system_prompt'] = self.prompt_buffer.get_text(start, end, False)
-        
+
         Config.save(self.config)
         self.parent_window.config = self.config
+        self.parent_window.apply_settings()
         self.close()
 
 
 class AIWriterApp(Gtk.Application):
     def __init__(self):
-        super().__init__(application_id='com.aiwriter.app')
-    
+        super().__init__(
+            application_id='com.aiwriter.app',
+            flags=Gio.ApplicationFlags.NON_UNIQUE
+        )
+
     def do_activate(self):
         win = AIWriter(self)
         win.present()
 
 
 if __name__ == '__main__':
+    import sys
     app = AIWriterApp()
-    app.run(None)
+    app.run(sys.argv)
