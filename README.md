@@ -1,4 +1,4 @@
-# Eddie
+# Journally
 
 A writing-focused text editor for Linux and macOS with an integrated AI assistant. Eddie uses GTK4 and GtkSourceView for the UI and connects to a local [llama.cpp](https://github.com/ggerganov/llama.cpp) server for chat completions, so you can work on drafts and get help without sending data to the cloud.
 
@@ -82,3 +82,4 @@ In **Settings** you can change:
 - **Multi-file editing** — Tabs or notebook for multiple open files; AI suggestions across files
 - **Apply AI changes** — Parse code blocks from replies, “Apply” button, optional diff view
 - **Script runner** — Terminal panel to run scripts (e.g. Python) with current file or selection as input
+
