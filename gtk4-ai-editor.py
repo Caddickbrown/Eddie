@@ -11,9 +11,18 @@ from gi.repository import Gtk, GtkSource, Gio, GLib, Pango
 import json
 import os
 import subprocess
+import sys
 import threading
 import requests
 from pathlib import Path
+
+
+def _config_path():
+    """Config file path; Windows uses AppData/Roaming, Unix uses ~/.config."""
+    if sys.platform == "win32":
+        return Path.home() / "AppData" / "Roaming" / "ai-writer" / "config.json"
+    return Path.home() / ".config" / "ai-writer" / "config.json"
+
 
 class Config:
     """Simple configuration management"""
@@ -31,7 +40,7 @@ class Config:
     
     @staticmethod
     def load():
-        config_path = Path.home() / ".config" / "ai-writer" / "config.json"
+        config_path = _config_path()
         if config_path.exists():
             with open(config_path) as f:
                 return {**Config.DEFAULT_CONFIG, **json.load(f)}
@@ -39,7 +48,7 @@ class Config:
     
     @staticmethod
     def save(config):
-        config_path = Path.home() / ".config" / "ai-writer" / "config.json"
+        config_path = _config_path()
         config_path.parent.mkdir(parents=True, exist_ok=True)
         with open(config_path, 'w') as f:
             json.dump(config, f, indent=2)
@@ -217,8 +226,8 @@ class AIWriter(Gtk.ApplicationWindow):
         scrolled = Gtk.ScrolledWindow()
         scrolled.set_vexpand(True)
         
-        # Tree view
-        self.file_store = Gtk.ListStore(str, str, bool)  # display_name, full_path, in_context
+        # Tree store: display_name, full_path, in_context (hierarchical for collapsible folders)
+        self.file_store = Gtk.TreeStore(str, str, bool)
         self.file_tree = Gtk.TreeView(model=self.file_store)
         
         # Name column
@@ -226,7 +235,7 @@ class AIWriter(Gtk.ApplicationWindow):
         column_text = Gtk.TreeViewColumn("Name", renderer_text, text=0)
         self.file_tree.append_column(column_text)
         
-        # Context checkbox column
+        # Context checkbox column (only meaningful for files)
         renderer_toggle = Gtk.CellRendererToggle()
         renderer_toggle.connect("toggled", self.on_context_toggled)
         column_toggle = Gtk.TreeViewColumn("Ctx", renderer_toggle, active=2)
@@ -440,7 +449,7 @@ class AIWriter(Gtk.ApplicationWindow):
         def run():
             try:
                 result = subprocess.run(
-                    ["python3", script_path],
+                    [sys.executable, script_path],
                     cwd=cwd,
                     capture_output=True,
                     text=True,
@@ -517,29 +526,26 @@ class AIWriter(Gtk.ApplicationWindow):
         except GLib.Error:
             pass
     
+    def _add_tree_node(self, parent_iter, path):
+        """Add a file or folder row; if folder, add children recursively (collapsible)."""
+        if path.name.startswith('.'):
+            return
+        is_dir = path.is_dir()
+        display = ("📁 " if is_dir else "📄 ") + path.name
+        in_context = (str(path) in self.file_contexts) if not is_dir else False
+        row_iter = self.file_store.append(parent_iter, [display, str(path), in_context])
+        if is_dir:
+            try:
+                for item in sorted(path.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower())):
+                    self._add_tree_node(row_iter, item)
+            except PermissionError:
+                pass
+
     def load_file_tree(self):
         self.file_store.clear()
         if not self.root_folder:
             return
-        
-        # Load files recursively
-        def add_files(path, depth=0):
-            try:
-                items = sorted(path.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower()))
-                for item in items:
-                    if item.name.startswith('.'):
-                        continue
-                    
-                    display_name = "  " * depth + ("📁 " if item.is_dir() else "📄 ") + item.name
-                    in_context = str(item) in self.file_contexts
-                    self.file_store.append([display_name, str(item), in_context])
-                    
-                    if item.is_dir():
-                        add_files(item, depth + 1)
-            except PermissionError:
-                pass
-        
-        add_files(self.root_folder)
+        self._add_tree_node(None, self.root_folder)
     
     def on_file_activated(self, tree_view, path, column):
         model = tree_view.get_model()
@@ -661,27 +667,27 @@ class AIWriter(Gtk.ApplicationWindow):
             self.create_new_tab()
     
     def on_context_toggled(self, widget, path):
-        iter = self.file_store.get_iter(path)
-        file_path = self.file_store.get_value(iter, 1)
-        current_state = self.file_store.get_value(iter, 2)
-        
+        row_iter = self.file_store.get_iter(path)
+        file_path = self.file_store.get_value(row_iter, 1)
+        if not os.path.isfile(file_path):
+            return  # Only files can be in context
+        current_state = self.file_store.get_value(row_iter, 2)
         new_state = not current_state
-        self.file_store.set_value(iter, 2, new_state)
-        
+        self.file_store.set_value(row_iter, 2, new_state)
         if new_state:
             self.file_contexts.add(file_path)
         else:
             self.file_contexts.discard(file_path)
-        
         self.update_context_label()
     
+    def _clear_context_in_tree(self, model, path, row_iter):
+        """Walk tree and set all in_context to False."""
+        model.set_value(row_iter, 2, False)
+        return False  # continue
+
     def on_clear_context(self, button):
         self.file_contexts.clear()
-        # Update all checkboxes
-        iter = self.file_store.get_iter_first()
-        while iter:
-            self.file_store.set_value(iter, 2, False)
-            iter = self.file_store.iter_next(iter)
+        self.file_store.foreach(self._clear_context_in_tree)
         self.update_context_label()
     
     def update_context_label(self):
