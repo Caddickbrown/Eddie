@@ -349,13 +349,12 @@ class AIWriter(Gtk.ApplicationWindow):
     
     def configure_editor_view(self, view):
         """Apply configuration to an editor view"""
+        view.add_css_class("source-editor")
         view.set_show_line_numbers(self.config['show_line_numbers'])
         view.set_auto_indent(True)
         view.set_indent_width(4)
         view.set_monospace(True)
         view.set_wrap_mode(Gtk.WrapMode.WORD if self.config['wrap_text'] else Gtk.WrapMode.NONE)
-        
-        # Font: GTK4 uses CSS; set_monospace(True) above gives monospace. editor_font in config kept for future use.
 
         # Set theme
         scheme_manager = GtkSource.StyleSchemeManager.get_default()
@@ -817,6 +816,7 @@ class AIWriter(Gtk.ApplicationWindow):
     def apply_settings(self):
         """Apply settings to all open editors"""
         apply_app_theme(self.config.get('theme', 'layan-dark'))
+        apply_editor_font(self.config)
         for tab in self.tabs:
             self.configure_editor_view(tab.source_view)
     
@@ -881,6 +881,19 @@ class SettingsDialog(Gtk.Window):
         temp_box.append(self.temp_spin)
         box.append(temp_box)
 
+        # Editor font
+        font_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        font_label = Gtk.Label(label="Editor Font:")
+        font_label.set_size_request(150, -1)
+        font_label.set_halign(Gtk.Align.START)
+        self.font_entry = Gtk.Entry()
+        self.font_entry.set_text(self.config.get('editor_font', 'Monospace 11'))
+        self.font_entry.set_placeholder_text("e.g. Monospace 11")
+        self.font_entry.set_hexpand(True)
+        font_box.append(font_label)
+        font_box.append(self.font_entry)
+        box.append(font_box)
+
         # Show line numbers checkbox
         self.line_numbers_check = Gtk.CheckButton(label="Show Line Numbers")
         self.line_numbers_check.set_active(self.config['show_line_numbers'])
@@ -928,6 +941,7 @@ class SettingsDialog(Gtk.Window):
     def on_save(self, button):
         self.config['llama_cpp_url'] = self.url_entry.get_text()
         self.config['temperature'] = self.temp_spin.get_value()
+        self.config['editor_font'] = self.font_entry.get_text().strip() or "Monospace 11"
         self.config['show_line_numbers'] = self.line_numbers_check.get_active()
         self.config['wrap_text'] = self.wrap_text_check.get_active()
         self.config['theme'] = self._theme_keys[self.theme_dropdown.get_selected()]
@@ -960,6 +974,7 @@ def _themes_dir():
     return _app_dir() / "themes"
 
 _active_css_provider = None  # keeps a ref so we can remove+replace it
+_active_font_provider = None
 
 
 def _register_source_schemes():
@@ -998,6 +1013,28 @@ def apply_app_theme(theme_key):
     _active_css_provider = provider
 
 
+def apply_editor_font(config):
+    """Apply editor font from config via CSS (e.g. 'Monospace 11' -> 11pt Monospace)."""
+    global _active_font_provider
+    display = Gdk.Display.get_default()
+
+    if _active_font_provider is not None:
+        Gtk.StyleContext.remove_provider_for_display(display, _active_font_provider)
+        _active_font_provider = None
+
+    font_css = config.get("editor_font", "Monospace 11").strip()
+    parts = font_css.split()
+    if len(parts) >= 2 and parts[-1].isdigit():
+        size, fam = parts[-1], " ".join(parts[:-1])
+        font_css = f'{size}pt "{fam}"'
+    provider = Gtk.CssProvider()
+    provider.load_from_string(f".source-editor {{ font: {font_css}; }}")
+    Gtk.StyleContext.add_provider_for_display(
+        display, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+    )
+    _active_font_provider = provider
+
+
 class AIWriterApp(Gtk.Application):
     def __init__(self):
         super().__init__(
@@ -1009,6 +1046,7 @@ class AIWriterApp(Gtk.Application):
         _register_source_schemes()
         config = Config.load()
         apply_app_theme(config.get('theme', 'layan-dark'))
+        apply_editor_font(config)
         win = AIWriter(self)
         win.present()
 
