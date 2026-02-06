@@ -7,7 +7,7 @@ A lightweight, customizable text editor with llama.cpp integration
 import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('GtkSource', '5')
-from gi.repository import Gtk, GtkSource, Gio, GLib, Pango
+from gi.repository import Gtk, GtkSource, Gio, GLib, Gdk, Pango
 import json
 import os
 import subprocess
@@ -33,7 +33,7 @@ class Config:
         "max_tokens": 2000,
         "context_max_tokens": 6000,
         "editor_font": "Monospace 11",
-        "theme": "cobalt",
+        "theme": "layan-dark",
         "show_line_numbers": True,
         "wrap_text": True
     }
@@ -816,6 +816,7 @@ class AIWriter(Gtk.ApplicationWindow):
     
     def apply_settings(self):
         """Apply settings to all open editors"""
+        apply_app_theme(self.config.get('theme', 'layan-dark'))
         for tab in self.tabs:
             self.configure_editor_view(tab.source_view)
     
@@ -890,6 +891,23 @@ class SettingsDialog(Gtk.Window):
         self.wrap_text_check.set_active(self.config['wrap_text'])
         box.append(self.wrap_text_check)
 
+        # Theme selector
+        theme_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        theme_label = Gtk.Label(label="Theme:")
+        theme_label.set_size_request(150, -1)
+        theme_label.set_halign(Gtk.Align.START)
+        self.theme_dropdown = Gtk.DropDown()
+        theme_keys = list(AVAILABLE_THEMES.keys())
+        theme_labels = [k.replace('-', ' ').title() for k in theme_keys]
+        self.theme_dropdown.set_model(Gtk.StringList.new(theme_labels))
+        current = self.config.get('theme', 'layan-dark')
+        if current in theme_keys:
+            self.theme_dropdown.set_selected(theme_keys.index(current))
+        self._theme_keys = theme_keys
+        theme_box.append(theme_label)
+        theme_box.append(self.theme_dropdown)
+        box.append(theme_box)
+
         # Buttons
         button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         button_box.set_halign(Gtk.Align.END)
@@ -912,6 +930,7 @@ class SettingsDialog(Gtk.Window):
         self.config['temperature'] = self.temp_spin.get_value()
         self.config['show_line_numbers'] = self.line_numbers_check.get_active()
         self.config['wrap_text'] = self.wrap_text_check.get_active()
+        self.config['theme'] = self._theme_keys[self.theme_dropdown.get_selected()]
 
         start = self.prompt_buffer.get_start_iter()
         end = self.prompt_buffer.get_end_iter()
@@ -923,6 +942,62 @@ class SettingsDialog(Gtk.Window):
         self.close()
 
 
+def _app_dir():
+    """Return the directory containing this script (for bundled assets)."""
+    return Path(__file__).resolve().parent
+
+
+# ── Theme registry ───────────────────────────────────────────────────────────
+# Maps a theme key to (theme_subfolder, css_filename, sourceview_scheme_id).
+AVAILABLE_THEMES = {
+    "layan-dark":  ("layan-dark",  "layan-dark.css",  "layan-dark"),
+    "cream-navy":  ("cream-navy",  "cream-navy.css",  "cream-navy"),
+}
+
+
+def _themes_dir():
+    """Return the themes/ directory."""
+    return _app_dir() / "themes"
+
+_active_css_provider = None  # keeps a ref so we can remove+replace it
+
+
+def _register_source_schemes():
+    """Register every theme subfolder on the GtkSourceView search path."""
+    manager = GtkSource.StyleSchemeManager.get_default()
+    search_path = manager.get_search_path() or []
+    for _key, (subfolder, _css, _scheme) in AVAILABLE_THEMES.items():
+        d = str(_themes_dir() / subfolder)
+        if d not in search_path:
+            manager.prepend_search_path(d)
+
+
+def apply_app_theme(theme_key):
+    """Load (or hot-swap) the GTK4 CSS for *theme_key*."""
+    global _active_css_provider
+    display = Gdk.Display.get_default()
+
+    # Remove the old provider if one is active
+    if _active_css_provider is not None:
+        Gtk.StyleContext.remove_provider_for_display(display, _active_css_provider)
+        _active_css_provider = None
+
+    entry = AVAILABLE_THEMES.get(theme_key)
+    if entry is None:
+        return
+    subfolder, css_file, _scheme_id = entry
+    css_path = _themes_dir() / subfolder / css_file
+    if not css_path.exists():
+        return
+
+    provider = Gtk.CssProvider()
+    provider.load_from_path(str(css_path))
+    Gtk.StyleContext.add_provider_for_display(
+        display, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+    )
+    _active_css_provider = provider
+
+
 class AIWriterApp(Gtk.Application):
     def __init__(self):
         super().__init__(
@@ -931,6 +1006,9 @@ class AIWriterApp(Gtk.Application):
         )
 
     def do_activate(self):
+        _register_source_schemes()
+        config = Config.load()
+        apply_app_theme(config.get('theme', 'layan-dark'))
         win = AIWriter(self)
         win.present()
 

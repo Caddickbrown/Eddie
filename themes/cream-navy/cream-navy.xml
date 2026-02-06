@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Cream & Navy - GtkSourceView Style Scheme
+  "Craft Paper & Ink" – warm parchment with deep navy ink
+-->
+<style-scheme id="cream-navy" name="Cream &amp; Navy" version="1.0">
+  <author>Journally</author>
+  <description>A warm craft-paper and ink color scheme with cream backgrounds and navy text</description>
+
+  <!-- Palette -->
+  <color name="cream"           value="#FAF6F0"/>
+  <color name="parchment"       value="#F2EDE4"/>
+  <color name="tan"             value="#E8E2D8"/>
+  <color name="craft"           value="#D4C9B8"/>
+  <color name="warm_border"     value="#C8BDA8"/>
+
+  <color name="navy"            value="#1B2A4A"/>
+  <color name="navy_light"      value="#2E4A7A"/>
+  <color name="ink"             value="#1A1A2E"/>
+  <color name="slate"           value="#4A5568"/>
+  <color name="muted"           value="#718096"/>
+
+  <color name="blue_accent"     value="#4A6FA5"/>
+  <color name="warm_gold"       value="#B8860B"/>
+  <color name="forest"          value="#2D6A4F"/>
+  <color name="berry"           value="#8B2252"/>
+  <color name="rust"            value="#A0522D"/>
+  <color name="teal"            value="#1A7A6D"/>
+  <color name="plum"            value="#6B3FA0"/>
+  <color name="crimson"         value="#A03030"/>
+
+  <!-- Global settings -->
+  <style name="text"                        foreground="navy" background="cream"/>
+  <style name="cursor"                      foreground="navy"/>
+  <style name="secondary-cursor"            foreground="slate"/>
+  <style name="selection"                   background="#C8D8EC"/>
+  <style name="current-line"                background="parchment"/>
+  <style name="current-line-number"         foreground="navy" background="parchment"/>
+  <style name="line-numbers"                foreground="muted" background="tan"/>
+  <style name="right-margin"                foreground="muted" background="tan"/>
+  <style name="draw-spaces"                 foreground="craft"/>
+  <style name="background-pattern"          background="#F0EBE2"/>
+  <style name="bracket-match"               foreground="navy" background="#B8CCE4" bold="true"/>
+  <style name="bracket-mismatch"            foreground="cream" background="crimson" bold="true"/>
+  <style name="search-match"                foreground="cream" background="blue_accent"/>
+
+  <!-- Syntax highlighting -->
+  <style name="def:comment"                 foreground="muted" italic="true"/>
+  <style name="def:shebang"                 foreground="muted" italic="true"/>
+  <style name="def:doc-comment"             foreground="slate" italic="true"/>
+  <style name="def:doc-comment-element"     foreground="blue_accent" italic="true"/>
+
+  <style name="def:constant"                foreground="rust"/>
+  <style name="def:string"                  foreground="forest"/>
+  <style name="def:special-char"            foreground="teal"/>
+  <style name="def:character"               foreground="forest"/>
+  <style name="def:number"                  foreground="warm_gold"/>
+  <style name="def:floating-point"          foreground="warm_gold"/>
+  <style name="def:decimal"                 foreground="warm_gold"/>
+  <style name="def:base-n-integer"          foreground="warm_gold"/>
+  <style name="def:complex"                 foreground="warm_gold"/>
+  <style name="def:boolean"                 foreground="rust" bold="true"/>
+
+  <style name="def:identifier"              foreground="navy"/>
+  <style name="def:function"                foreground="blue_accent"/>
+  <style name="def:builtin"                 foreground="navy_light"/>
+
+  <style name="def:statement"               foreground="berry" bold="true"/>
+  <style name="def:keyword"                 foreground="berry" bold="true"/>
+  <style name="def:operator"                foreground="slate"/>
+
+  <style name="def:type"                    foreground="navy_light"/>
+  <style name="def:class"                   foreground="navy_light" bold="true"/>
+
+  <style name="def:preprocessor"            foreground="teal"/>
+  <style name="def:included-file"           foreground="forest"/>
+
+  <style name="def:error"                   foreground="cream" background="crimson"/>
+  <style name="def:warning"                 foreground="ink" background="warm_gold"/>
+  <style name="def:note"                    foreground="cream" background="blue_accent" bold="true"/>
+  <style name="def:underlined"              underline="single"/>
+  <style name="def:special-constant"        foreground="plum"/>
+  <style name="def:net-address"             foreground="blue_accent" underline="single"/>
+  <style name="def:heading"                 foreground="navy" bold="true"/>
+
+  <!-- Diff -->
+  <style name="diff:added-line"             foreground="forest"/>
+  <style name="diff:removed-line"           foreground="crimson"/>
+  <style name="diff:changed-line"           foreground="warm_gold"/>
+  <style name="diff:location"               foreground="blue_accent"/>
+
+  <!-- Python specifics -->
+  <style name="python:builtin-function"     foreground="blue_accent"/>
+  <style name="python:class-name"           foreground="navy_light" bold="true"/>
+  <style name="python:decorator"            foreground="plum"/>
+  <style name="python:module-handler"       foreground="berry" bold="true"/>
+  <style name="python:special-variable"     foreground="rust" italic="true"/>
+  <style name="python:f-string-curly-braces" foreground="plum"/>
+
+  <!-- Markdown -->
+  <style name="markdown:header"             foreground="navy" bold="true"/>
+  <style name="markdown:emphasis"           italic="true"/>
+  <style name="markdown:strong-emphasis"    bold="true"/>
+  <style name="markdown:link-text"          foreground="blue_accent"/>
+  <style name="markdown:url"                foreground="forest" underline="single"/>
+  <style name="markdown:code"               foreground="berry" background="parchment"/>
+  <style name="markdown:backquote"          foreground="berry" background="parchment"/>
+  <style name="markdown:list-marker"        foreground="navy" bold="true"/>
+
+  <!-- JSON -->
+  <style name="json:keyname"                foreground="navy_light"/>
+  <style name="json:string"                 foreground="forest"/>
+  <style name="json:null-value"             foreground="rust" bold="true"/>
+
+  <!-- XML/HTML -->
+  <style name="xml:element-name"            foreground="berry"/>
+  <style name="xml:attribute-name"          foreground="navy_light"/>
+  <style name="xml:attribute-value"         foreground="forest"/>
+  <style name="xml:tag"                     foreground="slate"/>
+  <style name="xml:namespace"               foreground="plum"/>
+
+</style-scheme>

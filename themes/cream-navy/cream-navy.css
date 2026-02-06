@@ -1,0 +1,348 @@
+/* Cream & Navy GTK4 Theme – "Craft Paper & Ink"
+ * Warm parchment backgrounds with deep navy ink accents.
+ */
+
+/* ── Color variables ─────────────────────────────────────────────── */
+
+@define-color theme_bg_color #F2EDE4;
+@define-color theme_base_color #FAF6F0;
+@define-color theme_fg_color #1B2A4A;
+@define-color theme_selected_bg_color #1B2A4A;
+@define-color theme_selected_fg_color #FAF6F0;
+
+@define-color primary_color #1B2A4A;
+@define-color accent_color #4A6FA5;
+@define-color warm_accent #C4A35A;
+@define-color ink_dark #1A1A2E;
+
+@define-color surface_color #EDE8E0;
+@define-color sidebar_color #E8E2D8;
+@define-color darker_bg #DDD7CC;
+@define-color lighter_bg #FAF6F0;
+@define-color border_color rgba(27,42,74,0.12);
+@define-color divider_color rgba(27,42,74,0.10);
+
+@define-color warning_color #B8860B;
+@define-color error_color #A03030;
+@define-color success_color #3A7D44;
+@define-color link_color #2E5C9A;
+@define-color destructive_color #A03030;
+
+@define-color craft_tan #D4C9B8;
+@define-color parchment #F5F0E8;
+@define-color deep_navy #152238;
+
+/* ── Global window ───────────────────────────────────────────────── */
+
+window {
+    background-color: @theme_bg_color;
+    color: @theme_fg_color;
+}
+
+/* ── Headerbar / Toolbar area ────────────────────────────────────── */
+
+headerbar, .toolbar {
+    background-color: @primary_color;
+    color: @theme_selected_fg_color;
+    border-bottom: 1px solid @deep_navy;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────── */
+
+button {
+    background-color: @surface_color;
+    color: @theme_fg_color;
+    border: 1px solid @border_color;
+    border-radius: 4px;
+    padding: 6px 14px;
+    min-height: 24px;
+    transition: all 200ms ease;
+}
+
+button:hover {
+    background-color: @craft_tan;
+    color: @ink_dark;
+    border-color: rgba(27,42,74,0.25);
+}
+
+button:active, button:checked {
+    background-color: @primary_color;
+    color: @theme_selected_fg_color;
+}
+
+button.suggested-action {
+    background-color: @primary_color;
+    color: @theme_selected_fg_color;
+    border: none;
+    font-weight: bold;
+}
+
+button.suggested-action:hover {
+    background-color: @accent_color;
+}
+
+button.destructive-action {
+    background-color: @destructive_color;
+    color: @theme_selected_fg_color;
+    border: none;
+}
+
+button.flat {
+    background: transparent;
+    border: none;
+}
+
+button.flat:hover {
+    background-color: alpha(@primary_color, 0.08);
+}
+
+/* ── Toggle buttons ──────────────────────────────────────────────── */
+
+togglebutton:checked,
+button.toggle:checked {
+    background-color: @primary_color;
+    color: @theme_selected_fg_color;
+    border-color: @primary_color;
+}
+
+/* ── Entry / Text inputs ─────────────────────────────────────────── */
+
+entry, textview, text {
+    background-color: @lighter_bg;
+    color: @theme_fg_color;
+    border: 1px solid @border_color;
+    border-radius: 4px;
+    padding: 6px 10px;
+    caret-color: @primary_color;
+}
+
+entry:focus, textview:focus {
+    border-color: @accent_color;
+    box-shadow: 0 0 0 2px alpha(@accent_color, 0.18);
+}
+
+entry selection, textview selection {
+    background-color: alpha(@accent_color, 0.25);
+    color: @theme_fg_color;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────────────── */
+
+scrollbar slider {
+    background-color: @craft_tan;
+    border-radius: 99px;
+    min-width: 6px;
+    min-height: 6px;
+}
+
+scrollbar slider:hover {
+    background-color: alpha(@primary_color, 0.4);
+}
+
+scrollbar slider:active {
+    background-color: @primary_color;
+}
+
+scrollbar {
+    background-color: transparent;
+}
+
+/* ── Paned separator ─────────────────────────────────────────────── */
+
+paned > separator {
+    background-color: @divider_color;
+    min-width: 1px;
+    min-height: 1px;
+}
+
+paned > separator:hover {
+    background-color: @accent_color;
+}
+
+/* ── TreeView / ListView ─────────────────────────────────────────── */
+
+treeview {
+    background-color: @lighter_bg;
+    color: @theme_fg_color;
+}
+
+treeview:hover {
+    background-color: alpha(@primary_color, 0.05);
+}
+
+treeview:selected {
+    background-color: alpha(@primary_color, 0.15);
+    color: @theme_fg_color;
+}
+
+treeview header button {
+    background-color: @surface_color;
+    color: @theme_fg_color;
+    border-bottom: 1px solid @border_color;
+    border-radius: 0;
+}
+
+/* ── Scrolled window ─────────────────────────────────────────────── */
+
+scrolledwindow {
+    border-radius: 4px;
+}
+
+/* ── Separator ───────────────────────────────────────────────────── */
+
+separator {
+    background-color: @divider_color;
+    min-width: 1px;
+    min-height: 1px;
+}
+
+/* ── Labels ──────────────────────────────────────────────────────── */
+
+label {
+    color: @theme_fg_color;
+}
+
+label.title, label.heading {
+    color: @ink_dark;
+    font-weight: bold;
+}
+
+/* ── Check / Toggle ──────────────────────────────────────────────── */
+
+checkbutton indicator {
+    border-radius: 3px;
+    border: 2px solid rgba(27,42,74,0.4);
+}
+
+checkbutton indicator:checked {
+    background-color: @primary_color;
+    border-color: @primary_color;
+}
+
+/* ── SpinButton ──────────────────────────────────────────────────── */
+
+spinbutton {
+    background-color: @lighter_bg;
+    color: @theme_fg_color;
+    border: 1px solid @border_color;
+    border-radius: 4px;
+}
+
+spinbutton button {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    color: @theme_fg_color;
+}
+
+spinbutton button:hover {
+    background-color: alpha(@primary_color, 0.1);
+}
+
+/* ── Popover ─────────────────────────────────────────────────────── */
+
+popover, popover.background {
+    background-color: @lighter_bg;
+    color: @theme_fg_color;
+    border: 1px solid @border_color;
+    border-radius: 8px;
+}
+
+popover modelbutton:hover {
+    background-color: alpha(@primary_color, 0.1);
+}
+
+/* ── Notebook / Tab area ─────────────────────────────────────────── */
+
+notebook {
+    background-color: @theme_bg_color;
+}
+
+notebook header {
+    background-color: @surface_color;
+    border-bottom: 1px solid @border_color;
+}
+
+notebook tab {
+    background-color: transparent;
+    color: rgba(27,42,74,0.6);
+    padding: 6px 12px;
+    border-bottom: 2px solid transparent;
+}
+
+notebook tab:checked {
+    color: @primary_color;
+    border-bottom: 2px solid @primary_color;
+}
+
+/* ── GtkSourceView (code editor) ─────────────────────────────────── */
+
+textview.view, .view text {
+    background-color: @lighter_bg;
+    color: @theme_fg_color;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────── */
+
+.navigation-sidebar, .sidebar {
+    background-color: @sidebar_color;
+}
+
+/* ── Selection highlight ─────────────────────────────────────────── */
+
+*:selected {
+    background-color: alpha(@primary_color, 0.18);
+    color: @theme_fg_color;
+}
+
+/* ── Focus ring ──────────────────────────────────────────────────── */
+
+*:focus-visible {
+    outline: 2px solid alpha(@accent_color, 0.4);
+    outline-offset: -2px;
+}
+
+/* ── Window controls ─────────────────────────────────────────────── */
+
+windowcontrols button {
+    border-radius: 99px;
+    min-width: 16px;
+    min-height: 16px;
+    padding: 2px;
+}
+
+/* ── MenuButton ──────────────────────────────────────────────────── */
+
+menubutton button {
+    background-color: @surface_color;
+}
+
+menubutton button:hover {
+    background-color: @craft_tan;
+}
+
+/* ── ListBox ─────────────────────────────────────────────────────── */
+
+listbox {
+    background-color: @lighter_bg;
+    border-radius: 4px;
+}
+
+listbox row {
+    padding: 6px 10px;
+    border-radius: 3px;
+}
+
+listbox row:hover {
+    background-color: alpha(@primary_color, 0.05);
+}
+
+listbox row:selected {
+    background-color: alpha(@primary_color, 0.15);
+}
+
+/* ── Dialog windows ──────────────────────────────────────────────── */
+
+dialog, window.dialog, messagedialog {
+    background-color: @theme_bg_color;
+}

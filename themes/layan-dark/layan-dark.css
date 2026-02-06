@@ -1,0 +1,349 @@
+/* Layan GTK4 Theme - Dark Variant
+ * Based on https://github.com/vinceliuice/Layan-gtk-theme
+ * Color palette from Material Design + Layan custom blue-grey tones
+ */
+
+/* ── Color variables ─────────────────────────────────────────────── */
+
+@define-color theme_bg_color #343440;
+@define-color theme_base_color #313139;
+@define-color theme_fg_color #ffffff;
+@define-color theme_selected_bg_color #5657f5;
+@define-color theme_selected_fg_color #ffffff;
+
+@define-color primary_color #5657f5;
+@define-color accent_color #E040FB;
+@define-color alt_primary #5C6BC0;
+@define-color progress_color #5D7DFB;
+
+@define-color surface_color #44454b;
+@define-color sidebar_color #3c3c46;
+@define-color darker_bg #25252d;
+@define-color lighter_bg #44454b;
+@define-color border_color rgba(255,255,255,0.08);
+@define-color divider_color rgba(255,255,255,0.16);
+
+@define-color warning_color #FF6D00;
+@define-color error_color #DD2C00;
+@define-color success_color #00C853;
+@define-color link_color #039BE5;
+@define-color destructive_color #FF5252;
+
+@define-color gradient_top #716ffb;
+@define-color gradient_mid #6C6AF2;
+@define-color gradient_bottom #4648FB;
+
+/* ── Global window ───────────────────────────────────────────────── */
+
+window {
+    background-color: @theme_bg_color;
+    color: @theme_fg_color;
+}
+
+/* ── Headerbar / Toolbar area ────────────────────────────────────── */
+
+headerbar, .toolbar {
+    background: linear-gradient(to right, @gradient_top, @gradient_mid);
+    color: @theme_selected_fg_color;
+    border-bottom: 1px solid rgba(0,0,0,0.2);
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────── */
+
+button {
+    background-color: @surface_color;
+    color: rgba(255,255,255,0.8);
+    border: 1px solid @border_color;
+    border-radius: 6px;
+    padding: 6px 14px;
+    min-height: 24px;
+    transition: all 200ms ease;
+}
+
+button:hover {
+    background-color: alpha(@primary_color, 0.25);
+    color: @theme_fg_color;
+    border-color: alpha(@primary_color, 0.4);
+}
+
+button:active, button:checked {
+    background-color: alpha(@primary_color, 0.35);
+    color: @theme_fg_color;
+}
+
+button.suggested-action {
+    background: linear-gradient(to bottom, @gradient_top, @gradient_bottom);
+    color: @theme_selected_fg_color;
+    border: none;
+    font-weight: bold;
+}
+
+button.suggested-action:hover {
+    background: linear-gradient(to bottom, lighter(@gradient_top), @gradient_mid);
+}
+
+button.destructive-action {
+    background-color: @destructive_color;
+    color: @theme_selected_fg_color;
+    border: none;
+}
+
+button.flat {
+    background: transparent;
+    border: none;
+}
+
+button.flat:hover {
+    background-color: alpha(@theme_fg_color, 0.08);
+}
+
+/* ── Toggle buttons ──────────────────────────────────────────────── */
+
+togglebutton:checked,
+button.toggle:checked {
+    background: alpha(@primary_color, 0.3);
+    color: @theme_fg_color;
+    border-color: alpha(@primary_color, 0.5);
+}
+
+/* ── Entry / Text inputs ─────────────────────────────────────────── */
+
+entry, textview, text {
+    background-color: @theme_base_color;
+    color: @theme_fg_color;
+    border: 1px solid @border_color;
+    border-radius: 6px;
+    padding: 6px 10px;
+    caret-color: @primary_color;
+}
+
+entry:focus, textview:focus {
+    border-color: @primary_color;
+    box-shadow: 0 0 0 2px alpha(@primary_color, 0.25);
+}
+
+entry selection, textview selection {
+    background-color: alpha(@primary_color, 0.35);
+    color: @theme_fg_color;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────────────── */
+
+scrollbar slider {
+    background-color: alpha(white, 0.2);
+    border-radius: 99px;
+    min-width: 6px;
+    min-height: 6px;
+}
+
+scrollbar slider:hover {
+    background-color: alpha(white, 0.35);
+}
+
+scrollbar slider:active {
+    background-color: @primary_color;
+}
+
+scrollbar {
+    background-color: transparent;
+}
+
+/* ── Paned separator ─────────────────────────────────────────────── */
+
+paned > separator {
+    background-color: @divider_color;
+    min-width: 1px;
+    min-height: 1px;
+}
+
+paned > separator:hover {
+    background-color: @primary_color;
+}
+
+/* ── TreeView / ListView ─────────────────────────────────────────── */
+
+treeview {
+    background-color: @theme_base_color;
+    color: @theme_fg_color;
+}
+
+treeview:hover {
+    background-color: alpha(@theme_fg_color, 0.05);
+}
+
+treeview:selected {
+    background-color: alpha(@primary_color, 0.3);
+    color: @theme_fg_color;
+}
+
+treeview header button {
+    background-color: @sidebar_color;
+    color: rgba(255,255,255,0.7);
+    border-bottom: 1px solid @border_color;
+    border-radius: 0;
+}
+
+/* ── Scrolled window ─────────────────────────────────────────────── */
+
+scrolledwindow {
+    border-radius: 6px;
+}
+
+/* ── Separator ───────────────────────────────────────────────────── */
+
+separator {
+    background-color: @divider_color;
+    min-width: 1px;
+    min-height: 1px;
+}
+
+/* ── Labels ──────────────────────────────────────────────────────── */
+
+label {
+    color: rgba(255,255,255,0.85);
+}
+
+label.title, label.heading {
+    color: @theme_fg_color;
+    font-weight: bold;
+}
+
+/* ── Check / Toggle ──────────────────────────────────────────────── */
+
+checkbutton indicator {
+    border-radius: 4px;
+    border: 2px solid rgba(255,255,255,0.5);
+}
+
+checkbutton indicator:checked {
+    background-color: @primary_color;
+    border-color: @primary_color;
+}
+
+/* ── SpinButton ──────────────────────────────────────────────────── */
+
+spinbutton {
+    background-color: @theme_base_color;
+    color: @theme_fg_color;
+    border: 1px solid @border_color;
+    border-radius: 6px;
+}
+
+spinbutton button {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    color: rgba(255,255,255,0.7);
+}
+
+spinbutton button:hover {
+    background-color: alpha(@primary_color, 0.15);
+}
+
+/* ── Popover ─────────────────────────────────────────────────────── */
+
+popover, popover.background {
+    background-color: @surface_color;
+    color: rgba(255,255,255,0.8);
+    border: 1px solid @border_color;
+    border-radius: 10px;
+}
+
+popover modelbutton:hover {
+    background-color: alpha(@primary_color, 0.15);
+}
+
+/* ── Notebook / Tab area ─────────────────────────────────────────── */
+
+notebook {
+    background-color: @theme_bg_color;
+}
+
+notebook header {
+    background-color: @sidebar_color;
+    border-bottom: 1px solid @border_color;
+}
+
+notebook tab {
+    background-color: transparent;
+    color: rgba(255,255,255,0.6);
+    padding: 6px 12px;
+    border-bottom: 2px solid transparent;
+}
+
+notebook tab:checked {
+    color: @theme_fg_color;
+    border-bottom: 2px solid @primary_color;
+}
+
+/* ── GtkSourceView (code editor) ─────────────────────────────────── */
+
+textview.view, .view text {
+    background-color: @theme_base_color;
+    color: @theme_fg_color;
+}
+
+/* ── File panel (left sidebar style) ─────────────────────────────── */
+
+.navigation-sidebar, .sidebar {
+    background-color: @sidebar_color;
+}
+
+/* ── Selection highlight ─────────────────────────────────────────── */
+
+*:selected {
+    background-color: alpha(@primary_color, 0.35);
+    color: @theme_fg_color;
+}
+
+/* ── Focus ring ──────────────────────────────────────────────────── */
+
+*:focus-visible {
+    outline: 2px solid alpha(@primary_color, 0.5);
+    outline-offset: -2px;
+}
+
+/* ── Window controls ─────────────────────────────────────────────── */
+
+windowcontrols button {
+    border-radius: 99px;
+    min-width: 16px;
+    min-height: 16px;
+    padding: 2px;
+}
+
+/* ── MenuButton ──────────────────────────────────────────────────── */
+
+menubutton button {
+    background-color: @surface_color;
+}
+
+menubutton button:hover {
+    background-color: alpha(@primary_color, 0.25);
+}
+
+/* ── ListBox ─────────────────────────────────────────────────────── */
+
+listbox {
+    background-color: @theme_base_color;
+    border-radius: 6px;
+}
+
+listbox row {
+    padding: 6px 10px;
+    border-radius: 4px;
+}
+
+listbox row:hover {
+    background-color: alpha(@theme_fg_color, 0.05);
+}
+
+listbox row:selected {
+    background-color: alpha(@primary_color, 0.25);
+}
+
+/* ── Dialog windows ──────────────────────────────────────────────── */
+
+dialog, window.dialog, messagedialog {
+    background-color: @theme_bg_color;
+}

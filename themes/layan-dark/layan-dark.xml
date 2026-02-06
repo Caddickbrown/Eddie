@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Layan Dark - GtkSourceView Style Scheme
+  Based on the Layan GTK theme by vinceliuice
+  https://github.com/vinceliuice/Layan-gtk-theme
+-->
+<style-scheme id="layan-dark" name="Layan Dark" version="1.0">
+  <author>Layan Theme Integration</author>
+  <description>A dark color scheme inspired by the Layan GTK theme with Material Design purple-blue accents</description>
+
+  <!-- Palette -->
+  <color name="bg"              value="#313139"/>
+  <color name="bg_alt"          value="#343440"/>
+  <color name="surface"         value="#44454b"/>
+  <color name="sidebar"         value="#3c3c46"/>
+  <color name="darker"          value="#25252d"/>
+
+  <color name="fg"              value="#FFFFFF"/>
+  <color name="fg_dim"          value="#B0B0C0"/>
+  <color name="fg_faint"        value="#7F818A"/>
+  <color name="comment_color"   value="#7F818A"/>
+
+  <color name="primary"         value="#5657F5"/>
+  <color name="primary_light"   value="#716FFB"/>
+  <color name="accent"          value="#E040FB"/>
+  <color name="alt_primary"     value="#5C6BC0"/>
+  <color name="progress"        value="#5D7DFB"/>
+
+  <color name="keyword_color"   value="#AB47BC"/>
+  <color name="string_color"    value="#66BB6A"/>
+  <color name="number_color"    value="#FFB74D"/>
+  <color name="type_color"      value="#42A5F5"/>
+  <color name="function_color"  value="#7C4DFF"/>
+  <color name="constant_color"  value="#EF5350"/>
+  <color name="preproc_color"   value="#26C6DA"/>
+  <color name="warning_color"   value="#FF6D00"/>
+  <color name="error_color"     value="#DD2C00"/>
+  <color name="diff_add"        value="#00C853"/>
+  <color name="diff_remove"     value="#FF5252"/>
+  <color name="diff_change"     value="#FFD740"/>
+
+  <!-- Global settings -->
+  <style name="text"                        foreground="fg" background="bg"/>
+  <style name="cursor"                      foreground="primary_light"/>
+  <style name="secondary-cursor"            foreground="fg_faint"/>
+  <style name="selection"                   background="#3D3E8F"/>
+  <style name="current-line"                background="surface"/>
+  <style name="current-line-number"         foreground="primary_light" background="surface"/>
+  <style name="line-numbers"                foreground="fg_faint" background="bg_alt"/>
+  <style name="right-margin"                foreground="fg_faint" background="bg_alt"/>
+  <style name="draw-spaces"                 foreground="fg_faint"/>
+  <style name="background-pattern"          background="#2D2D35"/>
+  <style name="bracket-match"               foreground="fg" background="#4A4A80" bold="true"/>
+  <style name="bracket-mismatch"            foreground="fg" background="error_color" bold="true"/>
+  <style name="search-match"                foreground="darker" background="primary_light"/>
+
+  <!-- Syntax highlighting -->
+  <style name="def:comment"                 foreground="comment_color" italic="true"/>
+  <style name="def:shebang"                 foreground="comment_color" italic="true"/>
+  <style name="def:doc-comment"             foreground="#9E9E9E" italic="true"/>
+  <style name="def:doc-comment-element"     foreground="alt_primary" italic="true"/>
+
+  <style name="def:constant"                foreground="constant_color"/>
+  <style name="def:string"                  foreground="string_color"/>
+  <style name="def:special-char"            foreground="preproc_color"/>
+  <style name="def:character"               foreground="string_color"/>
+  <style name="def:number"                  foreground="number_color"/>
+  <style name="def:floating-point"          foreground="number_color"/>
+  <style name="def:decimal"                 foreground="number_color"/>
+  <style name="def:base-n-integer"          foreground="number_color"/>
+  <style name="def:complex"                 foreground="number_color"/>
+  <style name="def:boolean"                 foreground="constant_color" bold="true"/>
+
+  <style name="def:identifier"              foreground="fg_dim"/>
+  <style name="def:function"                foreground="function_color"/>
+  <style name="def:builtin"                 foreground="type_color"/>
+
+  <style name="def:statement"               foreground="keyword_color" bold="true"/>
+  <style name="def:keyword"                 foreground="keyword_color" bold="true"/>
+  <style name="def:operator"                foreground="fg_dim"/>
+
+  <style name="def:type"                    foreground="type_color"/>
+  <style name="def:class"                   foreground="type_color" bold="true"/>
+
+  <style name="def:preprocessor"            foreground="preproc_color"/>
+  <style name="def:included-file"           foreground="string_color"/>
+
+  <style name="def:error"                   foreground="fg" background="error_color"/>
+  <style name="def:warning"                 foreground="darker" background="warning_color"/>
+  <style name="def:note"                    foreground="darker" background="primary_light" bold="true"/>
+  <style name="def:underlined"              underline="single"/>
+  <style name="def:special-constant"        foreground="accent"/>
+  <style name="def:net-address"             foreground="type_color" underline="single"/>
+  <style name="def:heading"                 foreground="primary_light" bold="true"/>
+
+  <!-- Diff -->
+  <style name="diff:added-line"             foreground="diff_add"/>
+  <style name="diff:removed-line"           foreground="diff_remove"/>
+  <style name="diff:changed-line"           foreground="diff_change"/>
+  <style name="diff:location"               foreground="alt_primary"/>
+
+  <!-- Python specifics -->
+  <style name="python:builtin-function"     foreground="function_color"/>
+  <style name="python:class-name"           foreground="type_color" bold="true"/>
+  <style name="python:decorator"            foreground="accent"/>
+  <style name="python:module-handler"       foreground="keyword_color" bold="true"/>
+  <style name="python:special-variable"     foreground="constant_color" italic="true"/>
+  <style name="python:f-string-curly-braces" foreground="accent"/>
+
+  <!-- Markdown -->
+  <style name="markdown:header"             foreground="primary_light" bold="true"/>
+  <style name="markdown:emphasis"           italic="true"/>
+  <style name="markdown:strong-emphasis"    bold="true"/>
+  <style name="markdown:link-text"          foreground="type_color"/>
+  <style name="markdown:url"                foreground="string_color" underline="single"/>
+  <style name="markdown:code"               foreground="accent" background="surface"/>
+  <style name="markdown:backquote"          foreground="accent" background="surface"/>
+  <style name="markdown:list-marker"        foreground="keyword_color" bold="true"/>
+
+  <!-- JSON -->
+  <style name="json:keyname"                foreground="type_color"/>
+  <style name="json:string"                 foreground="string_color"/>
+  <style name="json:null-value"             foreground="constant_color" bold="true"/>
+
+  <!-- XML/HTML -->
+  <style name="xml:element-name"            foreground="keyword_color"/>
+  <style name="xml:attribute-name"          foreground="type_color"/>
+  <style name="xml:attribute-value"         foreground="string_color"/>
+  <style name="xml:tag"                     foreground="fg_faint"/>
+  <style name="xml:namespace"               foreground="accent"/>
+
+</style-scheme>
