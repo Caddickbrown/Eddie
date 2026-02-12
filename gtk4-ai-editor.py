@@ -35,7 +35,10 @@ class Config:
         "editor_font": "Monospace 11",
         "theme": "layan-dark",
         "show_line_numbers": True,
-        "wrap_text": True
+        "wrap_text": True,
+        "default_folder": "",
+        "show_file_panel": True,
+        "show_ai_panel": True
     }
     
     @staticmethod
@@ -90,13 +93,23 @@ class AIWriter(Gtk.ApplicationWindow):
         self.tabs = []  # List of EditorTab objects
         self.current_tab_index = -1
         
-        # Panel visibility
-        self.file_panel_visible = True
-        self.ai_panel_visible = True
+        # Panel visibility (restored from config)
+        self.file_panel_visible = self.config.get('show_file_panel', True)
+        self.ai_panel_visible = self.config.get('show_ai_panel', True)
         
         self.setup_ui()
         self.create_new_tab()  # Start with one empty tab
         
+        # Apply saved panel visibility
+        self.file_panel.set_visible(self.file_panel_visible)
+        self.ai_panel.set_visible(self.ai_panel_visible)
+        
+        # Auto-open default folder if configured
+        default_folder = self.config.get('default_folder', '')
+        if default_folder and Path(default_folder).is_dir():
+            self.root_folder = Path(default_folder)
+            self.load_file_tree()
+    
     def setup_ui(self):
         # Main horizontal paned (file tree | editor | AI panel)
         self.main_paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
@@ -167,13 +180,13 @@ class AIWriter(Gtk.ApplicationWindow):
         
         # Toggle file panel
         toggle_files_btn = Gtk.ToggleButton(label="Files")
-        toggle_files_btn.set_active(True)
+        toggle_files_btn.set_active(self.file_panel_visible)
         toggle_files_btn.connect("toggled", self.on_toggle_file_panel)
         toolbar.append(toggle_files_btn)
         
         # Toggle AI panel
         toggle_ai_btn = Gtk.ToggleButton(label="AI")
-        toggle_ai_btn.set_active(True)
+        toggle_ai_btn.set_active(self.ai_panel_visible)
         toggle_ai_btn.connect("toggled", self.on_toggle_ai_panel)
         toolbar.append(toggle_ai_btn)
         
@@ -830,7 +843,7 @@ class SettingsDialog(Gtk.Window):
         self.set_transient_for(parent)
         self.set_modal(True)
         self.set_title("Settings")
-        self.set_default_size(500, 500)
+        self.set_default_size(500, 650)
         
         self.parent_window = parent
         self.config = config.copy()
@@ -921,6 +934,55 @@ class SettingsDialog(Gtk.Window):
         theme_box.append(self.theme_dropdown)
         box.append(theme_box)
 
+        # ── Defaults section ──────────────────────────────────────────
+        defaults_label = Gtk.Label()
+        defaults_label.set_markup("<b>Defaults</b>")
+        defaults_label.set_halign(Gtk.Align.START)
+        defaults_label.set_margin_top(8)
+        box.append(defaults_label)
+
+        # Default folder
+        folder_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        folder_label = Gtk.Label(label="Default Folder:")
+        folder_label.set_size_request(150, -1)
+        folder_label.set_halign(Gtk.Align.START)
+        self.folder_entry = Gtk.Entry()
+        self.folder_entry.set_text(self.config.get('default_folder', ''))
+        self.folder_entry.set_placeholder_text("None (pick each time)")
+        self.folder_entry.set_hexpand(True)
+        browse_btn = Gtk.Button(label="Browse…")
+        browse_btn.connect("clicked", self._on_browse_folder)
+        clear_folder_btn = Gtk.Button(label="Clear")
+        clear_folder_btn.connect("clicked", lambda w: self.folder_entry.set_text(""))
+        folder_box.append(folder_label)
+        folder_box.append(self.folder_entry)
+        folder_box.append(browse_btn)
+        folder_box.append(clear_folder_btn)
+        box.append(folder_box)
+
+        # Default panel visibility
+        self.file_panel_check = Gtk.CheckButton(label="Show File Panel on start")
+        self.file_panel_check.set_active(self.config.get('show_file_panel', True))
+        box.append(self.file_panel_check)
+
+        self.ai_panel_check = Gtk.CheckButton(label="Show AI Panel on start")
+        self.ai_panel_check.set_active(self.config.get('show_ai_panel', True))
+        box.append(self.ai_panel_check)
+
+        # Max tokens
+        max_tokens_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        max_tokens_label = Gtk.Label(label="Max Tokens:")
+        max_tokens_label.set_size_request(150, -1)
+        max_tokens_label.set_halign(Gtk.Align.START)
+        self.max_tokens_spin = Gtk.SpinButton()
+        self.max_tokens_spin.set_range(100, 32000)
+        self.max_tokens_spin.set_increments(100, 500)
+        self.max_tokens_spin.set_digits(0)
+        self.max_tokens_spin.set_value(self.config.get('max_tokens', 2000))
+        max_tokens_box.append(max_tokens_label)
+        max_tokens_box.append(self.max_tokens_spin)
+        box.append(max_tokens_box)
+
         # Buttons
         button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         button_box.set_halign(Gtk.Align.END)
@@ -938,6 +1000,19 @@ class SettingsDialog(Gtk.Window):
 
         self.set_child(box)
 
+    def _on_browse_folder(self, button):
+        """Open a folder chooser to pick the default folder."""
+        dialog = Gtk.FileDialog.new()
+        dialog.select_folder(callback=self._on_folder_chosen)
+
+    def _on_folder_chosen(self, dialog, result):
+        try:
+            folder = dialog.select_folder_finish(result)
+            if folder:
+                self.folder_entry.set_text(folder.get_path())
+        except GLib.Error:
+            pass
+
     def on_save(self, button):
         self.config['llama_cpp_url'] = self.url_entry.get_text()
         self.config['temperature'] = self.temp_spin.get_value()
@@ -945,6 +1020,10 @@ class SettingsDialog(Gtk.Window):
         self.config['show_line_numbers'] = self.line_numbers_check.get_active()
         self.config['wrap_text'] = self.wrap_text_check.get_active()
         self.config['theme'] = self._theme_keys[self.theme_dropdown.get_selected()]
+        self.config['default_folder'] = self.folder_entry.get_text().strip()
+        self.config['show_file_panel'] = self.file_panel_check.get_active()
+        self.config['show_ai_panel'] = self.ai_panel_check.get_active()
+        self.config['max_tokens'] = int(self.max_tokens_spin.get_value())
 
         start = self.prompt_buffer.get_start_iter()
         end = self.prompt_buffer.get_end_iter()

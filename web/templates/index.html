@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Journally</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- CodeMirror 5 from CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/shell/shell.min.js"></script>
+    <!-- Lucide icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <!-- Toolbar -->
+    <div id="toolbar">
+        <div class="toolbar-left">
+            <button id="btn-open-folder" title="Open Folder"><i data-lucide="folder-open"></i> Open Folder</button>
+            <button id="btn-new-file" title="New File"><i data-lucide="file-plus"></i> New File</button>
+            <button id="btn-save" title="Save"><i data-lucide="save"></i> Save</button>
+            <button id="btn-close-tab" title="Close Tab"><i data-lucide="x"></i> Close Tab</button>
+            <div class="toolbar-sep"></div>
+            <button id="btn-toggle-files" class="toggle-btn active" title="Toggle Files"><i data-lucide="panel-left"></i> Files</button>
+            <button id="btn-toggle-ai" class="toggle-btn active" title="Toggle AI"><i data-lucide="message-square"></i> AI</button>
+            <div class="toolbar-sep"></div>
+            <span id="context-label">Context: 0 files</span>
+            <button id="btn-clear-ctx" title="Clear Context"><i data-lucide="eraser"></i> Clear</button>
+        </div>
+        <div class="toolbar-right">
+            <button id="btn-settings" title="Settings"><i data-lucide="settings"></i> Settings</button>
+        </div>
+    </div>
+
+    <!-- Main three-panel layout -->
+    <div id="main">
+        <!-- LEFT: File tree -->
+        <div id="file-panel" class="panel">
+            <div class="panel-header">Files</div>
+            <div id="file-tree" class="panel-body"></div>
+        </div>
+        <div id="divider-left" class="divider"></div>
+
+        <!-- CENTER: Editor -->
+        <div id="editor-panel" class="panel">
+            <div id="tab-bar"></div>
+            <div id="editor-container"></div>
+        </div>
+        <div id="divider-right" class="divider"></div>
+
+        <!-- RIGHT: AI Chat -->
+        <div id="ai-panel" class="panel">
+            <div class="panel-header">AI Assistant</div>
+            <div id="chat-history" class="panel-body"></div>
+            <div id="chat-input-area">
+                <input type="text" id="chat-input" placeholder="Ask the AI… (use @filename to reference files)">
+                <button id="btn-send"><i data-lucide="send"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-overlay" class="modal-overlay hidden">
+        <div id="settings-modal" class="modal">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button id="settings-close" class="icon-btn"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <label>llama.cpp URL
+                    <input type="text" id="set-url">
+                </label>
+                <label>System Prompt
+                    <textarea id="set-prompt" rows="4"></textarea>
+                </label>
+                <div class="form-row">
+                    <label class="inline">Temperature
+                        <input type="number" id="set-temp" min="0" max="2" step="0.1">
+                    </label>
+                    <label class="inline">Max Tokens
+                        <input type="number" id="set-max-tokens" min="100" max="32000" step="100">
+                    </label>
+                </div>
+                <label>Editor Font
+                    <input type="text" id="set-font" placeholder="e.g. Monospace 11">
+                </label>
+                <div class="form-row">
+                    <label class="checkbox"><input type="checkbox" id="set-line-numbers"> Show Line Numbers</label>
+                    <label class="checkbox"><input type="checkbox" id="set-wrap"> Wrap Text</label>
+                </div>
+
+                <hr>
+                <h3>Defaults</h3>
+                <label>Default Folder
+                    <div class="input-group">
+                        <input type="text" id="set-default-folder" placeholder="None (pick each time)">
+                        <button id="set-browse-folder" class="small-btn">Browse…</button>
+                        <button id="set-clear-folder" class="small-btn">Clear</button>
+                    </div>
+                </label>
+                <div class="form-row">
+                    <label class="checkbox"><input type="checkbox" id="set-show-files"> Show File Panel on start</label>
+                    <label class="checkbox"><input type="checkbox" id="set-show-ai"> Show AI Panel on start</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="settings-cancel" class="btn-secondary">Cancel</button>
+                <button id="settings-save" class="btn-primary">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Open Folder Modal -->
+    <div id="folder-overlay" class="modal-overlay hidden">
+        <div id="folder-modal" class="modal modal-sm">
+            <div class="modal-header">
+                <h2>Open Folder</h2>
+                <button id="folder-close" class="icon-btn"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <label>Folder path
+                    <div class="input-group">
+                        <input type="text" id="folder-path-input" placeholder="/home/user/documents">
+                        <button id="folder-browse-btn" class="small-btn">Browse…</button>
+                    </div>
+                </label>
+            </div>
+            <div class="modal-footer">
+                <button id="folder-cancel" class="btn-secondary">Cancel</button>
+                <button id="folder-open" class="btn-primary">Open</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Folder Browser Modal (shared) -->
+    <div id="fbrowser-overlay" class="modal-overlay hidden">
+        <div id="fbrowser-modal" class="modal">
+            <div class="modal-header">
+                <h2>Select Folder</h2>
+                <button id="fbrowser-close" class="icon-btn"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body" style="padding:0;">
+                <div id="fbrowser-path-bar">
+                    <button id="fbrowser-up" class="small-btn" title="Go up">↑ Up</button>
+                    <span id="fbrowser-current-path"></span>
+                </div>
+                <div id="fbrowser-list"></div>
+            </div>
+            <div class="modal-footer">
+                <button id="fbrowser-cancel" class="btn-secondary">Cancel</button>
+                <button id="fbrowser-select" class="btn-primary">Select This Folder</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- New File Modal -->
+    <div id="newfile-overlay" class="modal-overlay hidden">
+        <div id="newfile-modal" class="modal modal-sm">
+            <div class="modal-header">
+                <h2>New File</h2>
+                <button id="newfile-close" class="icon-btn"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <label>File name
+                    <input type="text" id="newfile-name" placeholder="untitled.md">
+                </label>
+            </div>
+            <div class="modal-footer">
+                <button id="newfile-cancel" class="btn-secondary">Cancel</button>
+                <button id="newfile-create" class="btn-primary">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
