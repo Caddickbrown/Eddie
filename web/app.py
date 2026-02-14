@@ -502,4 +502,6 @@ def ai_chat():
 # ── Run ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    # host="0.0.0.0" so the app is reachable from other devices (e.g. over Tailscale)
+    app.run(debug=True, host="0.0.0.0", port=port)
