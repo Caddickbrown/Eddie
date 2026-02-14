@@ -84,6 +84,46 @@ html, body {
 
 #toolbar svg { width: 16px; height: 16px; }
 
+/* Scripts dropdown */
+.scripts-dropdown {
+    position: relative;
+}
+#scripts-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 4px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    min-width: 200px;
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 100;
+}
+#scripts-list {
+    padding: 4px 0;
+}
+.script-item {
+    padding: 8px 12px;
+    font-size: 13px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.1s;
+}
+.script-item:hover {
+    background: rgba(108, 99, 255, 0.12);
+}
+.script-item.empty {
+    color: var(--text-muted);
+    font-style: italic;
+    cursor: default;
+}
+.script-item.empty:hover {
+    background: transparent;
+}
+
 /* ── Main layout ──────────────────────────────────────────────────────────── */
 #main {
     display: flex;
@@ -404,6 +444,19 @@ html, body {
 .modal-body input::placeholder,
 .modal-body textarea::placeholder { color: var(--text-muted); }
 .modal-body input[type="checkbox"] { accent-color: var(--accent); }
+.modal-body select {
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: var(--font-sans);
+    outline: none;
+    transition: border-color 0.15s;
+    cursor: pointer;
+}
+.modal-body select:focus { border-color: var(--accent); }
 
 .modal-body hr {
     border: none;

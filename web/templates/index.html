@@ -32,6 +32,13 @@
             <button id="btn-toggle-files" class="toggle-btn active" title="Toggle Files"><i data-lucide="panel-left"></i> Files</button>
             <button id="btn-toggle-ai" class="toggle-btn active" title="Toggle AI"><i data-lucide="message-square"></i> AI</button>
             <div class="toolbar-sep"></div>
+            <div class="scripts-dropdown">
+                <button id="btn-scripts" title="Scripts"><i data-lucide="file-code"></i> Scripts</button>
+                <div id="scripts-menu" class="dropdown-menu hidden">
+                    <div id="scripts-list"></div>
+                </div>
+            </div>
+            <div class="toolbar-sep"></div>
             <span id="context-label">Context: 0 files</span>
             <button id="btn-clear-ctx" title="Clear Context"><i data-lucide="eraser"></i> Clear</button>
         </div>
@@ -96,6 +103,12 @@
                     <label class="checkbox"><input type="checkbox" id="set-line-numbers"> Show Line Numbers</label>
                     <label class="checkbox"><input type="checkbox" id="set-wrap"> Wrap Text</label>
                 </div>
+                <label>Theme
+                    <select id="set-theme">
+                        <option value="layan-dark">Layan Dark</option>
+                        <option value="cream-navy">Cream Navy</option>
+                    </select>
+                </label>
 
                 <hr>
                 <h3>Defaults</h3>
@@ -176,6 +189,22 @@
             <div class="modal-footer">
                 <button id="newfile-cancel" class="btn-secondary">Cancel</button>
                 <button id="newfile-create" class="btn-primary">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Output Modal -->
+    <div id="script-output-overlay" class="modal-overlay hidden">
+        <div id="script-output-modal" class="modal">
+            <div class="modal-header">
+                <h2 id="script-output-title">Script Output</h2>
+                <button id="script-output-close" class="icon-btn"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body" style="padding:0;">
+                <div id="script-output-content" style="padding:12px;font-family:var(--font-mono);font-size:12px;white-space:pre-wrap;max-height:400px;overflow-y:auto;background:var(--bg-primary);"></div>
+            </div>
+            <div class="modal-footer">
+                <button id="script-output-ok" class="btn-primary">Close</button>
             </div>
         </div>
     </div>

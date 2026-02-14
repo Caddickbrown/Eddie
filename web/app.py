@@ -198,6 +198,261 @@ def new_file_api():
 
 # ── AI proxy ──────────────────────────────────────────────────────────────────
 
+# ── Scripts API ──────────────────────────────────────────────────────────────
+
+@app.route("/api/scripts/list", methods=["GET"])
+def list_scripts():
+    """List .py files in the scripts/ folder of the current project."""
+    folder = request.args.get("folder", "")
+    if not folder:
+        cfg = load_config()
+        folder = cfg.get("default_folder", "")
+    
+    if not folder or not Path(folder).is_dir():
+        return jsonify({"scripts": [], "error": "No folder open"})
+    
+    scripts_dir = Path(folder) / "scripts"
+    if not scripts_dir.is_dir():
+        return jsonify({"scripts": [], "error": "No 'scripts' folder found"})
+    
+    try:
+        py_files = sorted(scripts_dir.glob("*.py"))
+        scripts = [{"name": f.name, "path": str(f)} for f in py_files]
+        return jsonify({"scripts": scripts})
+    except Exception as e:
+        return jsonify({"scripts": [], "error": str(e)})
+
+
+@app.route("/api/scripts/run", methods=["POST"])
+def run_script():
+    """Run a Python script and return its output."""
+    import subprocess
+    data = request.json
+    script_path = data.get("path", "")
+    
+    if not script_path or not os.path.isfile(script_path):
+        return jsonify({"error": "Script not found", "stdout": "", "stderr": "", "returncode": -1}), 404
+    
+    try:
+        # Determine working directory (scripts folder if script is in one)
+        script_dir = Path(script_path).parent
+        cwd = str(script_dir) if script_dir.name == "scripts" else None
+        
+        result = subprocess.run(
+            [sys.executable, script_path],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        return jsonify({
+            "stdout": result.stdout or "",
+            "stderr": result.stderr or "",
+            "returncode": result.returncode,
+        })
+    except subprocess.TimeoutExpired:
+        return jsonify({
+            "error": "Script timed out after 300 seconds",
+            "stdout": "",
+            "stderr": "Script timed out after 300 seconds.",
+            "returncode": -1,
+        })
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "stdout": "",
+            "stderr": str(e),
+            "returncode": -1,
+        })
+
+
+# ── Theme API ────────────────────────────────────────────────────────────────
+
+@app.route("/api/theme/<theme_key>")
+def get_theme(theme_key):
+    """Serve the CSS file for a theme, converted from GTK CSS to web CSS."""
+    themes_dir = Path(__file__).resolve().parent.parent / "themes"
+    theme_map = {
+        "layan-dark": "layan-dark/layan-dark.css",
+        "cream-navy": "cream-navy/cream-navy.css",
+    }
+    
+    if theme_key not in theme_map:
+        return "/* Theme not found */", 404
+    
+    css_path = themes_dir / theme_map[theme_key]
+    if not css_path.exists():
+        return "/* Theme file not found */", 404
+    
+    # Read GTK CSS
+    with open(css_path, "r", encoding="utf-8") as f:
+        gtk_css = f.read()
+    
+    # Extract color variables
+    import re
+    color_vars = {}
+    for match in re.finditer(r"@define-color\s+(\w+)\s+([^;]+);", gtk_css):
+        var_name = match.group(1)
+        var_value = match.group(2).strip()
+        color_vars[var_name] = var_value
+    
+    # Create web-compatible CSS with color variables
+    web_css = "/* Web theme converted from GTK CSS */\n\n:root {\n"
+    for var_name, var_value in color_vars.items():
+        web_css += f"    --{var_name}: {var_value};\n"
+    web_css += "}\n\n"
+    
+    # Apply theme-specific styles
+    if theme_key == "layan-dark":
+        web_css += """
+body {
+    background: var(--theme_bg_color);
+    color: var(--theme_fg_color);
+}
+#toolbar {
+    background: linear-gradient(to right, var(--gradient_top), var(--gradient_mid));
+    color: var(--theme_selected_fg_color);
+    border-bottom: 1px solid rgba(0,0,0,0.2);
+}
+.panel {
+    background: var(--sidebar_color);
+}
+.panel-header {
+    background: var(--sidebar_color);
+    color: var(--text-secondary);
+}
+#editor-panel {
+    background: var(--theme_bg_color);
+}
+#tab-bar {
+    background: var(--sidebar_color);
+}
+.tab.active {
+    background: var(--theme_bg_color);
+    border-bottom-color: var(--primary_color);
+}
+#toolbar button {
+    background: var(--surface_color);
+    color: rgba(255,255,255,0.8);
+    border-color: var(--border_color);
+}
+#toolbar button:hover {
+    background: rgba(86, 87, 245, 0.25);
+    border-color: rgba(86, 87, 245, 0.4);
+}
+#toolbar button.toggle-btn.active {
+    background: rgba(86, 87, 245, 0.35);
+    border-color: rgba(86, 87, 245, 0.5);
+}
+.modal {
+    background: var(--surface_color);
+    color: rgba(255,255,255,0.8);
+    border-color: var(--border_color);
+}
+.modal-body input, .modal-body textarea, .modal-body select {
+    background: var(--theme_base_color);
+    color: var(--theme_fg_color);
+    border-color: var(--border_color);
+}
+.modal-body input:focus, .modal-body textarea:focus, .modal-body select:focus {
+    border-color: var(--primary_color);
+}
+#chat-input {
+    background: var(--theme_base_color);
+    color: var(--theme_fg_color);
+    border-color: var(--border_color);
+}
+#chat-input:focus {
+    border-color: var(--primary_color);
+}
+.chat-msg.ai {
+    background: var(--theme_base_color);
+}
+.chat-msg.user {
+    background: rgba(86, 87, 245, 0.25);
+}
+.tree-row:hover {
+    background: rgba(86, 87, 245, 0.12);
+}
+"""
+    elif theme_key == "cream-navy":
+        web_css += """
+body {
+    background: var(--theme_bg_color);
+    color: var(--theme_fg_color);
+}
+#toolbar {
+    background: var(--primary_color);
+    color: var(--theme_selected_fg_color);
+    border-bottom: 1px solid var(--deep_navy);
+}
+.panel {
+    background: var(--sidebar_color);
+}
+.panel-header {
+    background: var(--sidebar_color);
+    color: var(--text-secondary);
+}
+#editor-panel {
+    background: var(--theme_bg_color);
+}
+#tab-bar {
+    background: var(--surface_color);
+}
+.tab.active {
+    background: var(--theme_bg_color);
+    border-bottom-color: var(--primary_color);
+}
+#toolbar button {
+    background: var(--surface_color);
+    color: var(--theme_fg_color);
+    border-color: var(--border_color);
+}
+#toolbar button:hover {
+    background: var(--craft_tan);
+    color: var(--ink_dark);
+    border-color: rgba(27,42,74,0.25);
+}
+#toolbar button.toggle-btn.active {
+    background: var(--primary_color);
+    color: var(--theme_selected_fg_color);
+    border-color: var(--primary_color);
+}
+.modal {
+    background: var(--lighter_bg);
+    color: var(--theme_fg_color);
+    border-color: var(--border_color);
+}
+.modal-body input, .modal-body textarea, .modal-body select {
+    background: var(--lighter_bg);
+    color: var(--theme_fg_color);
+    border-color: var(--border_color);
+}
+.modal-body input:focus, .modal-body textarea:focus, .modal-body select:focus {
+    border-color: var(--accent_color);
+}
+#chat-input {
+    background: var(--lighter_bg);
+    color: var(--theme_fg_color);
+    border-color: var(--border_color);
+}
+#chat-input:focus {
+    border-color: var(--accent_color);
+}
+.chat-msg.ai {
+    background: var(--lighter_bg);
+}
+.chat-msg.user {
+    background: rgba(27, 42, 74, 0.15);
+}
+.tree-row:hover {
+    background: rgba(27, 42, 74, 0.05);
+}
+"""
+    
+    return web_css, 200, {"Content-Type": "text/css"}
+
+
 @app.route("/api/ai/chat", methods=["POST"])
 def ai_chat():
     """Proxy chat request to the llama.cpp server."""

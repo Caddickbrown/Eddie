@@ -36,6 +36,21 @@
         // Panel visibility
         setPanelVisible($filePanel, "btn-toggle-files", config.show_file_panel !== false);
         setPanelVisible($aiPanel, "btn-toggle-ai", config.show_ai_panel !== false);
+        // Apply theme
+        applyTheme(config.theme || "layan-dark");
+    }
+
+    function applyTheme(themeKey) {
+        // Remove existing theme link if any
+        const existing = document.getElementById("theme-stylesheet");
+        if (existing) existing.remove();
+
+        // Create new theme link
+        const link = document.createElement("link");
+        link.id = "theme-stylesheet";
+        link.rel = "stylesheet";
+        link.href = `/api/theme/${themeKey}`;
+        document.head.appendChild(link);
     }
 
     function setPanelVisible(panel, btnId, visible) {
@@ -78,6 +93,15 @@
         document.getElementById("btn-toggle-ai").addEventListener("click", () => togglePanel($aiPanel, "btn-toggle-ai"));
         document.getElementById("btn-clear-ctx").addEventListener("click", clearContext);
         document.getElementById("btn-settings").addEventListener("click", openSettings);
+        document.getElementById("btn-scripts").addEventListener("click", toggleScriptsMenu);
+        
+        // Close scripts menu when clicking outside
+        document.addEventListener("click", (e) => {
+            const dropdown = document.querySelector(".scripts-dropdown");
+            if (dropdown && !dropdown.contains(e.target)) {
+                document.getElementById("scripts-menu").classList.add("hidden");
+            }
+        });
 
         // AI chat
         document.getElementById("btn-send").addEventListener("click", sendChat);
@@ -122,6 +146,10 @@
         document.getElementById("newfile-name").addEventListener("keydown", (e) => {
             if (e.key === "Enter") doNewFile();
         });
+
+        // Script output modal
+        document.getElementById("script-output-close").addEventListener("click", closeScriptOutput);
+        document.getElementById("script-output-ok").addEventListener("click", closeScriptOutput);
 
         // Keyboard shortcuts
         document.addEventListener("keydown", (e) => {
@@ -479,6 +507,8 @@
         closeFolderDialog();
         rootFolder = path;
         await loadFileTree(path);
+        // Close scripts menu if open
+        document.getElementById("scripts-menu").classList.add("hidden");
     }
 
     // ── New File dialog ──────────────────────────────────────────────────────
@@ -523,6 +553,7 @@
         document.getElementById("set-default-folder").value = config.default_folder || "";
         document.getElementById("set-show-files").checked = config.show_file_panel !== false;
         document.getElementById("set-show-ai").checked = config.show_ai_panel !== false;
+        document.getElementById("set-theme").value = config.theme || "layan-dark";
         document.getElementById("settings-overlay").classList.remove("hidden");
     }
 
@@ -539,6 +570,7 @@
             editor_font:      document.getElementById("set-font").value.trim() || "Monospace 11",
             show_line_numbers:document.getElementById("set-line-numbers").checked,
             wrap_text:        document.getElementById("set-wrap").checked,
+            theme:            document.getElementById("set-theme").value,
             default_folder:   document.getElementById("set-default-folder").value.trim(),
             show_file_panel:  document.getElementById("set-show-files").checked,
             show_ai_panel:    document.getElementById("set-show-ai").checked,
@@ -552,6 +584,9 @@
             t.editor.setOption("lineNumbers", config.show_line_numbers !== false);
             t.editor.setOption("lineWrapping", config.wrap_text !== false);
         });
+
+        // Apply theme if changed
+        applyTheme(config.theme || "layan-dark");
 
         addChatMessage("system", "Settings saved.");
     }
@@ -620,6 +655,92 @@
             });
             list.appendChild(item);
         }
+    }
+
+    // ── Scripts ─────────────────────────────────────────────────────────────
+    async function toggleScriptsMenu() {
+        const menu = document.getElementById("scripts-menu");
+        const isHidden = menu.classList.contains("hidden");
+        
+        if (isHidden) {
+            await loadScriptsList();
+            menu.classList.remove("hidden");
+        } else {
+            menu.classList.add("hidden");
+        }
+    }
+
+    async function loadScriptsList() {
+        const list = document.getElementById("scripts-list");
+        list.innerHTML = '<div class="script-item empty">Loading...</div>';
+
+        try {
+            const data = await api(`/api/scripts/list?folder=${encodeURIComponent(rootFolder || "")}`);
+            list.innerHTML = "";
+
+            if (data.error) {
+                list.innerHTML = `<div class="script-item empty">${escHTML(data.error)}</div>`;
+                return;
+            }
+
+            if (!data.scripts || data.scripts.length === 0) {
+                list.innerHTML = '<div class="script-item empty">No scripts found. Create a "scripts" folder in your project.</div>';
+                return;
+            }
+
+            for (const script of data.scripts) {
+                const item = document.createElement("div");
+                item.className = "script-item";
+                item.textContent = script.name;
+                item.addEventListener("click", () => runScript(script.path));
+                list.appendChild(item);
+            }
+        } catch (err) {
+            list.innerHTML = `<div class="script-item empty">Error: ${escHTML(err.message)}</div>`;
+        }
+    }
+
+    async function runScript(scriptPath) {
+        document.getElementById("scripts-menu").classList.add("hidden");
+        addChatMessage("system", `Running script: ${scriptPath.split(/[\\/]/).pop()}...`);
+
+        try {
+            const data = await postJSON("/api/scripts/run", { path: scriptPath });
+            showScriptOutput(scriptPath, data);
+        } catch (err) {
+            showScriptOutput(scriptPath, { error: err.message, stdout: "", stderr: "", returncode: -1 });
+        }
+    }
+
+    function showScriptOutput(scriptPath, result) {
+        const title = document.getElementById("script-output-title");
+        const content = document.getElementById("script-output-content");
+        
+        title.textContent = `Script: ${scriptPath.split(/[\\/]/).pop()}`;
+        
+        let output = "";
+        if (result.error) {
+            output = `Error: ${result.error}\n\n`;
+        }
+        if (result.stdout) {
+            output += `=== STDOUT ===\n${result.stdout}\n\n`;
+        }
+        if (result.stderr) {
+            output += `=== STDERR ===\n${result.stderr}\n\n`;
+        }
+        if (result.returncode !== undefined) {
+            output += `Return code: ${result.returncode}`;
+        }
+        if (!output) {
+            output = "No output";
+        }
+        
+        content.textContent = output;
+        document.getElementById("script-output-overlay").classList.remove("hidden");
+    }
+
+    function closeScriptOutput() {
+        document.getElementById("script-output-overlay").classList.add("hidden");
     }
 
     // ── Util ─────────────────────────────────────────────────────────────────
